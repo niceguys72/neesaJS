@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { joinVoiceChannel, getVoiceConnection } from '@discordjs/voice';
-import { GoogleGenAI } from '@google/genai';  // ← Correct import: GoogleGenAI
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // ──────────────────────────────────────────────
 // ENVIRONMENT VARIABLES
@@ -27,17 +27,17 @@ if (!TARGET_ID) {
 }
 
 // ──────────────────────────────────────────────
-// GEMINI CLIENT (new SDK)
+// GEMINI CLIENT
 // ──────────────────────────────────────────────
 
-const genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY });  // ← Constructor takes object with apiKey
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 const model = genAI.getGenerativeModel({
   model: GEMINI_MODEL,
   generationConfig: {
-    temperature: 1.0,           // chaotic / dramatic
+    temperature: 1.0,           // chaotic / dramatic personality
     topP: 0.95,
-    maxOutputTokens: 180,
+    maxOutputTokens: 180,       // keep replies short
   },
   systemInstruction: `
 You are Neesa — completely, unhealthily obsessed with Dorian.
@@ -75,7 +75,7 @@ client.once('ready', () => {
 });
 
 // ──────────────────────────────────────────────
-// VOICE FOLLOWING (unchanged)
+// VOICE FOLLOWING
 // ──────────────────────────────────────────────
 
 client.on('voiceStateUpdate', (oldState, newState) => {
@@ -84,6 +84,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
   const guild = newState.guild;
 
+  // Joined voice
   if (!oldState.channelId && newState.channelId) {
     console.log(`Target joined → ${newState.channel?.name || newState.channelId}`);
 
@@ -96,6 +97,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     });
   }
 
+  // Switched channels
   else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
     console.log(`Target switched → ${newState.channel?.name || newState.channelId}`);
 
@@ -111,6 +113,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     });
   }
 
+  // Left voice
   else if (oldState.channelId && !newState.channelId) {
     console.log('Target left voice → disconnecting');
     const conn = getVoiceConnection(guild.id);
