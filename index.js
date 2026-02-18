@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { joinVoiceChannel, getVoiceConnection } from '@discordjs/voice';
-import { Groq } from 'groq';
+import Groq from 'groq-sdk';
 
 // ──────────────────────────────────────────────
 // ENVIRONMENT VARIABLES
