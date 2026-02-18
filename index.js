@@ -1,7 +1,10 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Partials } from 'discord.js';
+import { Client, GatewayIntentBits } from 'discord.js';
 import { init } from '@heyputer/puter.js/src/init.cjs';
-import { joinVoiceChannel, getVoiceConnection } from '@discordjs/voice';
+
+// ==========================
+// ENV VARIABLES
+// ==========================
 
 const TOKEN = process.env.TOKEN;
 const TARGET_ID = process.env.TARGET_ID ? BigInt(process.env.TARGET_ID) : null;

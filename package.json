@@ -9,8 +9,6 @@
   "dependencies": {
     "discord.js": "^14.14.1",
     "@heyputer/puter.js": "latest",
-    "@discordjs/voice": "^1.14.0",
-    "dotenv": "^16.0.0",
-    "node-fetch": "^3.3.1"
+    "dotenv": "^16.0.0"
   }
 }
