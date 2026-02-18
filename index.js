@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { joinVoiceChannel, getVoiceConnection } from '@discordjs/voice';
-import { init } from '@heyputer/puter.js/src/init.cjs';
+import axios from 'axios';
 
 // ==========================
 // ENV
@@ -9,17 +9,18 @@ import { init } from '@heyputer/puter.js/src/init.cjs';
 
 const TOKEN = process.env.TOKEN;
 const TARGET_ID = process.env.TARGET_ID;
+const GEMINI_KEY = process.env.GEMINI_KEY; // your Gemini API key
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5';
 
 if (!TOKEN) {
   console.error("TOKEN missing.");
   process.exit(1);
 }
 
-// ==========================
-// PUTER
-// ==========================
-
-const puter = init(process.env.PUTER_AUTH_TOKEN || "");
+if (!GEMINI_KEY) {
+  console.error("GEMINI_KEY missing.");
+  process.exit(1);
+}
 
 // ==========================
 // SYSTEM PROMPT
@@ -97,6 +98,36 @@ client.on("voiceStateUpdate", (oldState, newState) => {
 });
 
 // ==========================
+// AI CHAT FUNCTION (Gemini)
+// ==========================
+
+async function askGemini(prompt) {
+  try {
+    const resp = await axios.post(
+      'https://api.generativeai.google/v1beta2/models/' + GEMINI_MODEL + ':generateMessage',
+      {
+        prompt: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: prompt }
+        ]
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${GEMINI_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    // Gemini returns structured JSON
+    return resp.data?.candidates?.[0]?.content || "AI did not respond 😭";
+  } catch (err) {
+    console.error("Gemini Error:", err.response?.data || err.message);
+    return "AI broke 😭 try again";
+  }
+}
+
+// ==========================
 // TEXT COMMAND
 // ==========================
 
@@ -107,33 +138,11 @@ client.on("messageCreate", async (message) => {
   const userPrompt = message.content.slice(2).trim();
   if (!userPrompt) return;
 
-  try {
-    await message.channel.sendTyping();
+  await message.channel.sendTyping();
 
-    const response = await puter.ai.chat(
-      [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt }
-      ],
-      { model: process.env.PUTER_MODEL || "gpt-4o-mini" }
-    );
-
-    console.log("FULL PUTER RESPONSE:");
-    console.log(response);
-
-    const reply =
-      response?.choices?.[0]?.message?.content ||
-      response?.text ||
-      JSON.stringify(response);
-
-    await message.reply(String(reply));
-
-  } catch (err) {
-    console.error("AI Error:", err);
-    await message.reply("ai broke 😭 try again");
-  }
+  const reply = await askGemini(userPrompt);
+  await message.reply(reply);
 });
-
 
 // ==========================
 // LOGIN
