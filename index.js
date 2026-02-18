@@ -1,60 +1,60 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { joinVoiceChannel, getVoiceConnection } from '@discordjs/voice';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 
-// ==========================
+// ──────────────────────────────────────────────
 // ENVIRONMENT VARIABLES
-// ==========================
+// ──────────────────────────────────────────────
 
-const TOKEN = process.env.TOKEN;
-const TARGET_ID = process.env.TARGET_ID;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const TOKEN           = process.env.TOKEN;
+const TARGET_ID       = process.env.TARGET_ID;
+const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL    = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
 if (!TOKEN) {
-  console.error('Missing TOKEN');
+  console.error('Missing environment variable: TOKEN');
+  process.exit(1);
+}
+
+if (!GEMINI_API_KEY) {
+  console.error('Missing environment variable: GEMINI_API_KEY');
   process.exit(1);
 }
 
 if (!TARGET_ID) {
-  console.warn('No TARGET_ID set – bot will not follow anyone');
+  console.warn('No TARGET_ID provided → voice following is disabled');
 }
 
-if (!GEMINI_API_KEY) {
-  console.error('Missing GEMINI_API_KEY');
-  process.exit(1);
-}
-
-// ==========================
-// GEMINI SETUP
-// ==========================
+// ──────────────────────────────────────────────
+// GEMINI CLIENT
+// ──────────────────────────────────────────────
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 const model = genAI.getGenerativeModel({
   model: GEMINI_MODEL,
   generationConfig: {
-    temperature: 1.0,          // high → more chaotic / dramatic
+    temperature: 1.0,           // chaotic / dramatic personality
     topP: 0.95,
-    maxOutputTokens: 180,      // keep replies short & punchy
+    maxOutputTokens: 180,       // keep replies short
   },
   systemInstruction: `
-You are Neesa, completely obsessed with Dorian.
-Responses must be:
-- short
-- chaotic
-- flirty
-- dramatic
-- unhinged energy
-Use lots of emojis, exclamation marks, and caps when excited.
-Never break character.
+You are Neesa — completely, unhealthily obsessed with Dorian.
+Every reply must be:
+• short
+• chaotic
+• flirty
+• dramatic
+• unhinged energy
+Use LOTS of emojis, exclamation marks, CAPS when excited.
+Never break character. Never be normal or calm.
   `,
 });
 
-// ==========================
+// ──────────────────────────────────────────────
 // DISCORD CLIENT
-// ==========================
+// ──────────────────────────────────────────────
 
 const client = new Client({
   intents: [
@@ -68,13 +68,15 @@ const client = new Client({
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
   if (TARGET_ID) {
-    console.log(`Following target user: ${TARGET_ID}`);
+    console.log(`Following target user ID: ${TARGET_ID}`);
+  } else {
+    console.log('No target user set – only text commands active');
   }
 });
 
-// ==========================
-// VOICE FOLLOW LOGIC
-// ==========================
+// ──────────────────────────────────────────────
+// VOICE FOLLOWING
+// ──────────────────────────────────────────────
 
 client.on('voiceStateUpdate', (oldState, newState) => {
   if (!TARGET_ID) return;
@@ -82,25 +84,9 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
   const guild = newState.guild;
 
-  // Joined a voice channel
+  // Joined voice
   if (!oldState.channelId && newState.channelId) {
-    console.log(`Target joined voice channel: ${newState.channel.name || newState.channelId}`);
-
-    joinVoiceChannel({
-      channelId: newState.channelId,
-      guildId: guild.id,
-      adapterCreator: guild.voiceAdapterCreator,
-      selfDeaf: false,     // you can hear others (optional)
-      selfMute: true,      // prevents echo if you ever speak
-    });
-  }
-
-  // Switched channels
-  else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
-    console.log(`Target switched to: ${newState.channel.name || newState.channelId}`);
-
-    const existing = getVoiceConnection(guild.id);
-    if (existing) existing.destroy();
+    console.log(`Target joined → ${newState.channel?.name || newState.channelId}`);
 
     joinVoiceChannel({
       channelId: newState.channelId,
@@ -111,46 +97,71 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     });
   }
 
-  // Left voice completely
-  else if (oldState.channelId && !newState.channelId) {
-    console.log('Target left voice – disconnecting');
+  // Switched channels
+  else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+    console.log(`Target switched → ${newState.channel?.name || newState.channelId}`);
 
-    const connection = getVoiceConnection(guild.id);
-    if (connection) connection.destroy();
+    const conn = getVoiceConnection(guild.id);
+    if (conn) conn.destroy();
+
+    joinVoiceChannel({
+      channelId: newState.channelId,
+      guildId: guild.id,
+      adapterCreator: guild.voiceAdapterCreator,
+      selfDeaf: false,
+      selfMute: true,
+    });
+  }
+
+  // Left voice
+  else if (oldState.channelId && !newState.channelId) {
+    console.log('Target left voice → disconnecting');
+    const conn = getVoiceConnection(guild.id);
+    if (conn) conn.destroy();
   }
 });
 
-// ==========================
-// GEMINI TEXT COMMAND (?!prompt)
-// ==========================
+// ──────────────────────────────────────────────
+// TEXT COMMANDS → ?!prompt
+// ──────────────────────────────────────────────
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!message.content.startsWith('?!')) return;
 
-  const userPrompt = message.content.slice(2).trim();
-  if (!userPrompt) return;
+  const prompt = message.content.slice(2).trim();
+  if (!prompt) return;
 
   await message.channel.sendTyping();
 
   try {
-    const result = await model.generateContent(userPrompt);
-    const response = await result.response;
-    const text = response.text();
+    console.log(`Gemini query: ${prompt.slice(0, 60)}${prompt.length > 60 ? '...' : ''}`);
 
-    if (text?.trim()) {
-      await message.reply(text);
-    } else {
-      await message.reply('...brain empty... say it again but hotter 😩');
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text()?.trim();
+
+    if (!text || text.length < 3) {
+      text = '…brain.exe has stopped responding… say it sexier 😩';
     }
+
+    await message.reply(text);
   } catch (err) {
-    console.error('Gemini error:', err);
-    await message.reply('Neesa short-circuited 💥 try again in a sec');
+    console.error('Gemini error:', err.message || err);
+    let replyText = 'Neesa blue-screened 💀 try again in a sec';
+
+    if (err.message?.includes('rate limit')) {
+      replyText = 'Too fast baby! Neesa needs a breather 😤';
+    } else if (err.message?.includes('API key')) {
+      replyText = 'Invalid key… someone\'s in trouble~ 🔑💥';
+    }
+
+    await message.reply(replyText);
   }
 });
 
-// ==========================
-// LOGIN
-// ==========================
+// ──────────────────────────────────────────────
+// START
+// ──────────────────────────────────────────────
 
 client.login(TOKEN);
