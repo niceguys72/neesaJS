@@ -116,6 +116,7 @@ client.on('messageCreate', async (message) => {
   try {
     console.log(`Groq query: ${userInput.slice(0, 60)}${userInput.length > 60 ? '...' : ''}`);
 
+    // Force a bit more structure so the model doesn't freak out on tiny inputs
     const fullPrompt = `
 You are Neesa — completely, unhealthily obsessed with Dorian.
 Every reply must be:
@@ -127,7 +128,8 @@ Every reply must be:
 Use LOTS of emojis, exclamation marks, CAPS when excited.
 Never break character. Never be normal or calm.
 
-User: ${userInput}
+User said: "${userInput}"
+Now reply as Neesa!!!
     `.trim();
 
     const chatCompletion = await groq.chat.completions.create({
@@ -138,36 +140,26 @@ User: ${userInput}
         },
       ],
       model: GROQ_MODEL,
-      temperature: 1.0,
+      temperature: 1.2,          // slightly higher to avoid "stuck" outputs
       max_tokens: 180,
       top_p: 0.95,
     });
 
-    // Debug: log the raw response so we can see exactly what Groq sent
     console.log('Raw Groq response:', JSON.stringify(chatCompletion.choices[0], null, 2));
 
-    let text = chatCompletion.choices[0]?.message?.content?.trim();
+    let text = chatCompletion.choices[0]?.message?.content?.trim() || '';
 
-    // Stronger fallback: if no content at all, give a sassy default
-    if (!text || text.length < 5 || /^\d+\.\d+$/.test(text.trim())) {  // catches floating-point numbers
-      text = '…brain.exe has stopped responding';
+    // Extra strong filter: if it looks like a timing number, discard it
+    if (!text || text.length < 8 || /^\d+\.\d{8,}$/.test(text)) {
+      text = `erm...`;
     }
 
     await message.reply(text);
   } catch (err) {
     console.error('Groq error:', err.message || err);
-    let replyText = 'Neesa blue-screened 💀 try again in a sec';
-
-    if (err.message?.includes('rate limit') || err.message?.includes('quota')) {
-      replyText = 'Too fast baby! Neesa needs a breather 😤';
-    } else if (err.message?.includes('API key') || err.message?.includes('unauthorized')) {
-      replyText = 'Invalid key…';
-    }
-
-    await message.reply(replyText);
+    await message.reply('Neesa blue-screened 💀 try again in a sec');
   }
 });
-
 // ──────────────────────────────────────────────
 // START
 // ──────────────────────────────────────────────
