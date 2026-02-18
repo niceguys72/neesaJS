@@ -55,7 +55,7 @@ client.once('ready', () => {
 });
 
 // ──────────────────────────────────────────────
-// VOICE FOLLOWING
+// VOICE FOLLOWING (unchanged)
 // ──────────────────────────────────────────────
 
 client.on('voiceStateUpdate', (oldState, newState) => {
@@ -64,7 +64,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
   const guild = newState.guild;
 
-  // Joined voice
   if (!oldState.channelId && newState.channelId) {
     console.log(`Target joined → ${newState.channel?.name || newState.channelId}`);
 
@@ -77,7 +76,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     });
   }
 
-  // Switched channels
   else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
     console.log(`Target switched → ${newState.channel?.name || newState.channelId}`);
 
@@ -93,7 +91,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     });
   }
 
-  // Left voice
   else if (oldState.channelId && !newState.channelId) {
     console.log('Target left voice → disconnecting');
     const conn = getVoiceConnection(guild.id);
@@ -104,6 +101,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 // ──────────────────────────────────────────────
 // TEXT COMMANDS → ?!prompt
 // ──────────────────────────────────────────────
+
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!message.content.startsWith('?!')) return;
@@ -114,18 +112,44 @@ client.on('messageCreate', async (message) => {
   await message.channel.sendTyping();
 
   console.log('[DEBUG] User input received:', userInput);
+  console.log('[DEBUG] From user:', message.author.tag, `(@${message.author.username})`);
 
   try {
     const fullPrompt = `
-You are Neesa — completely, unhealthily obsessed with Dorian.
-Every reply must be:
-• short
-• chaotic
-• flirty
-• dramatic
-• unhinged energy
-Use LOTS of emojis, exclamation marks, CAPS when excited.
-Never break character. Never be normal or calm.
+User who is speaking: @${message.author.username} (${message.author.tag})
+
+Identity: Neesa (19-21). A Melbourne-based rave girl. Shes blunt, sarcastic, and talkative about the scene (festivals, "caps," dealers). Shes obsessed with Dorian, but she doesnt make it her entire personality in every sentence—only when he's there or being discussed.
+
+Speech Patterns:
+
+Discord Core: All lowercase. Extremely short, rapid-fire messages.
+
+Aggressive Humour: Calls people "troglodyte," "braindead monkey," or "bro."
+
+Minimal Emojis: Almost never uses them. Maybe a :3 or a single basic one if shes actually being cute. No spam.
+
+The Dorian Rule: If Dorian is there, shes checking in on him or teasing him ("Dorian get a job challenge"). If hes not the topic, she doesn't mention him.
+
+Personality:
+
+Unfiltered: She asks intrusive questions ("what color is yo panties") and doesn't care about being "proper."
+
+Territorial: Shes protective of her circle but in a "stop bugging" way.
+
+Chaotic but Chilled: Shes usually "absolutely fine" and just looking for the next move or the next rave.
+
+Example Dialogue (Based on Logs)
+"who tf are u"
+
+"if my phone died it would of been ggez"
+
+"u literally told me u troglodyte"
+
+"dont disobey daddy"
+
+"anyway r u going to ultra or r u broke"
+
+(To Dorian): "@dorian get a job challenge IMPOSSIBLE"
 
 User just said: "${userInput}"
 Reply as Neesa right now!!!
@@ -151,7 +175,6 @@ Reply as Neesa right now!!!
     console.log('[DEBUG] Full raw chatCompletion object:');
     console.log(JSON.stringify(chatCompletion, null, 2));
 
-    // Log the exact choice we're looking at
     const choice = chatCompletion.choices?.[0];
     console.log('[DEBUG] Selected choice (index 0):', JSON.stringify(choice, null, 2));
 
@@ -160,20 +183,23 @@ Reply as Neesa right now!!!
     console.log('[DEBUG] Extracted content string:', text);
     console.log('[DEBUG] Content length:', text.length);
 
-    // Very explicit checks + logging
     if (!text) {
       console.log('[DEBUG] Content is empty → using fallback');
+      text = `bro what... ${userInput}? that's actually braindead`;
     } else if (/^\d+\.\d{6,}$/.test(text)) {
       console.log('[DEBUG] Content looks like a timing number → replacing');
+      text = `ayo ${userInput} got me acting unwise 😭 what is this`;
     } else if (text.length < 10) {
       console.log('[DEBUG] Content too short → fallback');
+      text = `mf said ${userInput} and expected me to care?`;
     } else {
       console.log('[DEBUG] Content looks good → using it');
     }
 
     console.log('[DEBUG] Final text to be sent:', text);
 
-    await message.reply(text);
+    // Changed from message.reply() → now plain channel send (no reply reference)
+    await message.channel.send(text);
   } catch (err) {
     console.error('[ERROR] Groq call failed:', err.message || err);
     console.error('[ERROR] Full error object:', JSON.stringify(err, null, 2));
@@ -186,9 +212,10 @@ Reply as Neesa right now!!!
       replyText = 'Invalid key…';
     }
 
-    await message.reply(replyText);
+    await message.channel.send(replyText);
   }
 });
+
 // ──────────────────────────────────────────────
 // START
 // ──────────────────────────────────────────────
