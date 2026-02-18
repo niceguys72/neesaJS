@@ -5,10 +5,10 @@
   "scripts": {
     "start": "node index.js"
   },
-    "dependencies": {
+  "dependencies": {
     "@discordjs/voice": "^0.17.0",
     "discord.js": "^14.17.3",
-    "@google/genai": "^1.41.0",
-    "dotenv": "^16.4.5"
-    }
+    "dotenv": "^16.4.5",
+    "groq-sdk": "^0.9.0" 
+  }
 }
