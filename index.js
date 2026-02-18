@@ -43,7 +43,7 @@ const client = new Client({
   ]
 });
 
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`Logged in as ${client.user.tag}`);
   if (TARGET_ID) console.log(`Following user: ${TARGET_ID}`);
 });
@@ -115,15 +115,18 @@ client.on("messageCreate", async (message) => {
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt }
       ],
-      { model: process.env.PUTER_MODEL || "gpt-5-nano" }
+      { model: process.env.PUTER_MODEL || "gpt-4o-mini" }
     );
 
-    const reply = response?.text ?? response ?? "idk 😭";
-    await message.reply(String(reply));
+    const reply =
+      response?.choices?.[0]?.message?.content ||
+      "ai broke 😭";
+
+    await message.reply(reply);
 
   } catch (err) {
-    console.error("AI error:", err);
-    await message.reply("ai broke 😭");
+    console.error("AI Error:", err);
+    await message.reply("ai broke 😭 try again");
   }
 });
 
