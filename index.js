@@ -99,12 +99,12 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 });
 
 // ──────────────────────────────────────────────
-// TEXT COMMANDS → ?!prompt
+// TEXT COMMANDS → command + prompt
 // ──────────────────────────────────────────────
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
-  if (!message.content.startsWith('?!')) return;
+  if (!message.content.startsWith('neesa')) return;
 
   const userInput = message.content.slice(2).trim();
   if (!userInput) return;
