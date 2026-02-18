@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { joinVoiceChannel, getVoiceConnection } from '@discordjs/voice';
-import { GoogleGenAI } from '@google/genai';
+import { Groq } from 'groq';
 
 // ──────────────────────────────────────────────
 // ENVIRONMENT VARIABLES
@@ -9,16 +9,16 @@ import { GoogleGenAI } from '@google/genai';
 
 const TOKEN           = process.env.TOKEN;
 const TARGET_ID       = process.env.TARGET_ID;
-const GEMINI_API_KEY  = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL    = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const GROQ_API_KEY    = process.env.GROQ_API_KEY;
+const GROQ_MODEL      = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 
 if (!TOKEN) {
   console.error('Missing environment variable: TOKEN');
   process.exit(1);
 }
 
-if (!GEMINI_API_KEY) {
-  console.error('Missing environment variable: GEMINI_API_KEY');
+if (!GROQ_API_KEY) {
+  console.error('Missing environment variable: GROQ_API_KEY');
   process.exit(1);
 }
 
@@ -27,10 +27,10 @@ if (!TARGET_ID) {
 }
 
 // ──────────────────────────────────────────────
-// GEMINI CLIENT
+// GROQ CLIENT
 // ──────────────────────────────────────────────
 
-const genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+const groq = new Groq({ apiKey: GROQ_API_KEY });
 
 // ──────────────────────────────────────────────
 // DISCORD CLIENT
@@ -115,19 +115,13 @@ client.on('messageCreate', async (message) => {
   await message.channel.sendTyping();
 
   try {
-    console.log(`Gemini query: ${prompt.slice(0, 60)}${prompt.length > 60 ? '...' : ''}`);
+    console.log(`Groq query: ${prompt.slice(0, 60)}${prompt.length > 60 ? '...' : ''}`);
 
-    const result = await genAI.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: [prompt],
-      generationConfig: {
-        temperature: 1.0,
-        topP: 0.95,
-        maxOutputTokens: 180,
-      },
-      systemInstructions: [{
-        role: 'system',
-        content: `
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content: `
 You are Neesa — completely, unhealthily obsessed with Dorian.
 Every reply must be:
 • short
@@ -137,26 +131,34 @@ Every reply must be:
 • unhinged energy
 Use LOTS of emojis, exclamation marks, CAPS when excited.
 Never break character. Never be normal or calm.
-        `,
-      }],
+          `,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      model: GROQ_MODEL,
+      temperature: 1.0,
+      max_tokens: 180,
+      top_p: 0.95,
     });
 
-    const response = result.response;
-    let text = response.text()?.trim();
+    let text = chatCompletion.choices[0]?.message?.content?.trim();
 
     if (!text || text.length < 3) {
-      text = '…brain.exe has stopped responding…';
+      text = '…brain.exe has stopped responding… say it sexier 😩';
     }
 
     await message.reply(text);
   } catch (err) {
-    console.error('Gemini error:', err.message || err);
+    console.error('Groq error:', err.message || err);
     let replyText = 'Neesa blue-screened 💀 try again in a sec';
 
     if (err.message?.includes('rate limit') || err.message?.includes('quota')) {
-      replyText = 'Too fast';
+      replyText = 'Too fast baby! Neesa needs a breather 😤';
     } else if (err.message?.includes('API key') || err.message?.includes('unauthorized')) {
-      replyText = 'Invalid key…';
+      replyText = 'Invalid key… someone\'s in trouble~ 🔑💥';
     }
 
     await message.reply(replyText);
