@@ -12,6 +12,12 @@ const TARGET_ID       = process.env.TARGET_ID;
 const GROQ_API_KEY    = process.env.GROQ_API_KEY;
 const GROQ_MODEL      = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 
+// Add user IDs here that should ALWAYS get a reply (even without "neesa" in message)
+const ALLOWED_USER_IDS = [
+  '368313447915716608',   // ← add your main/test user ID here
+  // '123456789012345678', // add more if needed
+];
+
 if (!TOKEN) {
   console.error('Missing environment variable: TOKEN');
   process.exit(1);
@@ -52,6 +58,7 @@ client.once('ready', () => {
   } else {
     console.log('No target user set – only text commands active');
   }
+  console.log(`Special users who always get replies: ${ALLOWED_USER_IDS.join(', ')}`);
 });
 
 // ──────────────────────────────────────────────
@@ -99,20 +106,29 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 });
 
 // ──────────────────────────────────────────────
-// TEXT COMMANDS → command + prompt
+// TEXT COMMANDS → any message with "neesa" OR from allowed user
 // ──────────────────────────────────────────────
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
-  if (!message.content.startsWith('neesa')) return;
 
-  const userInput = message.content.slice(2).trim();
-  if (!userInput) return;
+  const contentLower = message.content.toLowerCase();
+  const hasNeena = contentLower.includes('neesa');
+  const isAllowedUser = ALLOWED_USER_IDS.includes(message.author.id);
+
+  // Only process if it has "neesa" OR sender is in allowed list
+  if (!hasNeena && !isAllowedUser) return;
+
+  const userInput = message.content.trim();
+
+  // 1. Initial notice delay (bot "sees" the message and thinks for a moment)
+  await new Promise(resolve => setTimeout(resolve, Math.random() * 3000 + 1000)); // 1–4 seconds
 
   await message.channel.sendTyping();
 
   console.log('[DEBUG] User input received:', userInput);
   console.log('[DEBUG] From user:', message.author.tag, `(@${message.author.username})`);
+  console.log('[DEBUG] Trigger reason:', hasNeena ? 'contains "neesa"' : 'allowed user ID');
 
   try {
     const fullPrompt = `
@@ -198,10 +214,10 @@ Reply as Neesa right now!!!
 
     console.log('[DEBUG] Final text to be sent:', text);
 
-    // Simulate typing delay (random 2-5 seconds to make it feel natural)
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 3000 + 2000));
+    // 2. Typing delay (random 4–10 seconds — makes it look like she's writing)
+    await new Promise(resolve => setTimeout(resolve, Math.random() * 6000 + 4000));
 
-    // Changed from message.reply() → now plain channel send (no reply reference)
+    // Plain channel send (no reply reference)
     await message.channel.send(text);
   } catch (err) {
     console.error('[ERROR] Groq call failed:', err.message || err);
