@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { joinVoiceChannel, getVoiceConnection } from '@discordjs/voice';
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';  // ← Correct import: GoogleGenAI
 
 // ──────────────────────────────────────────────
 // ENVIRONMENT VARIABLES
@@ -27,17 +27,17 @@ if (!TARGET_ID) {
 }
 
 // ──────────────────────────────────────────────
-// GEMINI CLIENT
+// GEMINI CLIENT (new SDK)
 // ──────────────────────────────────────────────
 
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const genAI = new GoogleGenAI({ apiKey: GEMINI_API_KEY });  // ← Constructor takes object with apiKey
 
 const model = genAI.getGenerativeModel({
   model: GEMINI_MODEL,
   generationConfig: {
-    temperature: 1.0,           // chaotic / dramatic personality
+    temperature: 1.0,           // chaotic / dramatic
     topP: 0.95,
-    maxOutputTokens: 180,       // keep replies short
+    maxOutputTokens: 180,
   },
   systemInstruction: `
 You are Neesa — completely, unhealthily obsessed with Dorian.
@@ -75,7 +75,7 @@ client.once('ready', () => {
 });
 
 // ──────────────────────────────────────────────
-// VOICE FOLLOWING
+// VOICE FOLLOWING (unchanged)
 // ──────────────────────────────────────────────
 
 client.on('voiceStateUpdate', (oldState, newState) => {
@@ -84,7 +84,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 
   const guild = newState.guild;
 
-  // Joined voice
   if (!oldState.channelId && newState.channelId) {
     console.log(`Target joined → ${newState.channel?.name || newState.channelId}`);
 
@@ -97,7 +96,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     });
   }
 
-  // Switched channels
   else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
     console.log(`Target switched → ${newState.channel?.name || newState.channelId}`);
 
@@ -113,7 +111,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     });
   }
 
-  // Left voice
   else if (oldState.channelId && !newState.channelId) {
     console.log('Target left voice → disconnecting');
     const conn = getVoiceConnection(guild.id);
@@ -150,9 +147,9 @@ client.on('messageCreate', async (message) => {
     console.error('Gemini error:', err.message || err);
     let replyText = 'Neesa blue-screened 💀 try again in a sec';
 
-    if (err.message?.includes('rate limit')) {
+    if (err.message?.includes('rate limit') || err.message?.includes('quota')) {
       replyText = 'Too fast baby! Neesa needs a breather 😤';
-    } else if (err.message?.includes('API key')) {
+    } else if (err.message?.includes('API key') || err.message?.includes('unauthorized')) {
       replyText = 'Invalid key… someone\'s in trouble~ 🔑💥';
     }
 
