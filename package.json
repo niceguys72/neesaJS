@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "discord.js": "^14.14.1",
+    "@discordjs/voice": "^0.16.1",
     "@heyputer/puter.js": "latest",
     "dotenv": "^16.0.0"
   }
