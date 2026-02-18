@@ -109,19 +109,15 @@ client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!message.content.startsWith('?!')) return;
 
-  const prompt = message.content.slice(2).trim();
-  if (!prompt) return;
+  const userInput = message.content.slice(2).trim();
+  if (!userInput) return;
 
   await message.channel.sendTyping();
 
   try {
-    console.log(`Groq query: ${prompt.slice(0, 60)}${prompt.length > 60 ? '...' : ''}`);
+    console.log(`Groq query: ${userInput.slice(0, 60)}${userInput.length > 60 ? '...' : ''}`);
 
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `
+    const fullPrompt = `
 You are Neesa — completely, unhealthily obsessed with Dorian.
 Every reply must be:
 • short
@@ -131,11 +127,15 @@ Every reply must be:
 • unhinged energy
 Use LOTS of emojis, exclamation marks, CAPS when excited.
 Never break character. Never be normal or calm.
-          `,
-        },
+
+User: ${userInput}
+    `;
+
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
         {
-          role: 'user',
-          content: prompt,
+          role: "user",
+          content: fullPrompt.trim(),
         },
       ],
       model: GROQ_MODEL,
@@ -159,6 +159,8 @@ Never break character. Never be normal or calm.
       replyText = 'Too fast baby! Neesa needs a breather 😤';
     } else if (err.message?.includes('API key') || err.message?.includes('unauthorized')) {
       replyText = 'Invalid key… someone\'s in trouble~ 🔑💥';
+    } else if (err.message?.includes('400') || err.message?.includes('invalid_request')) {
+      replyText = 'Something broke in my brain… try again? 💔';
     }
 
     await message.reply(replyText);
