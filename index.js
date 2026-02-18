@@ -118,17 +118,22 @@ client.on("messageCreate", async (message) => {
       { model: process.env.PUTER_MODEL || "gpt-4o-mini" }
     );
 
+    console.log("FULL PUTER RESPONSE:");
+    console.log(response);
+
     const reply =
       response?.choices?.[0]?.message?.content ||
-      "ai broke 😭";
+      response?.text ||
+      JSON.stringify(response);
 
-    await message.reply(reply);
+    await message.reply(String(reply));
 
   } catch (err) {
     console.error("AI Error:", err);
     await message.reply("ai broke 😭 try again");
   }
 });
+
 
 // ==========================
 // LOGIN
