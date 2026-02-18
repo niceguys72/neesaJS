@@ -113,10 +113,9 @@ client.on('messageCreate', async (message) => {
 
   await message.channel.sendTyping();
 
-  try {
-    console.log(`Groq query: ${userInput.slice(0, 60)}${userInput.length > 60 ? '...' : ''}`);
+  console.log('[DEBUG] User input received:', userInput);
 
-    // Force a bit more structure so the model doesn't freak out on tiny inputs
+  try {
     const fullPrompt = `
 You are Neesa — completely, unhealthily obsessed with Dorian.
 Every reply must be:
@@ -128,9 +127,13 @@ Every reply must be:
 Use LOTS of emojis, exclamation marks, CAPS when excited.
 Never break character. Never be normal or calm.
 
-User said: "${userInput}"
-Now reply as Neesa!!!
+User just said: "${userInput}"
+Reply as Neesa right now!!!
     `.trim();
+
+    console.log('[DEBUG] Full prompt sent to Groq:');
+    console.log(fullPrompt);
+    console.log('[DEBUG] Model used:', GROQ_MODEL);
 
     const chatCompletion = await groq.chat.completions.create({
       messages: [
@@ -140,24 +143,50 @@ Now reply as Neesa!!!
         },
       ],
       model: GROQ_MODEL,
-      temperature: 1.2,          // slightly higher to avoid "stuck" outputs
+      temperature: 1.2,
       max_tokens: 180,
       top_p: 0.95,
     });
 
-    console.log('Raw Groq response:', JSON.stringify(chatCompletion.choices[0], null, 2));
+    console.log('[DEBUG] Full raw chatCompletion object:');
+    console.log(JSON.stringify(chatCompletion, null, 2));
 
-    let text = chatCompletion.choices[0]?.message?.content?.trim() || '';
+    // Log the exact choice we're looking at
+    const choice = chatCompletion.choices?.[0];
+    console.log('[DEBUG] Selected choice (index 0):', JSON.stringify(choice, null, 2));
 
-    // Extra strong filter: if it looks like a timing number, discard it
-    if (!text || text.length < 8 || /^\d+\.\d{8,}$/.test(text)) {
-      text = `erm...`;
+    let text = choice?.message?.content?.trim() || '';
+
+    console.log('[DEBUG] Extracted content string:', text);
+    console.log('[DEBUG] Content length:', text.length);
+
+    // Very explicit checks + logging
+    if (!text) {
+      console.log('[DEBUG] Content is empty → using fallback');
+    } else if (/^\d+\.\d{6,}$/.test(text)) {
+      console.log('[DEBUG] Content looks like a timing number → replacing');
+    } else if (text.length < 10) {
+      console.log('[DEBUG] Content too short → fallback');
+    } else {
+      console.log('[DEBUG] Content looks good → using it');
     }
+
+    console.log('[DEBUG] Final text to be sent:', text);
 
     await message.reply(text);
   } catch (err) {
-    console.error('Groq error:', err.message || err);
-    await message.reply('Neesa blue-screened 💀 try again in a sec');
+    console.error('[ERROR] Groq call failed:', err.message || err);
+    console.error('[ERROR] Full error object:', JSON.stringify(err, null, 2));
+
+    let replyText = 'Neesa blue-screened 💀 try again in a sec';
+
+    if (err.message?.includes('rate limit') || err.message?.includes('quota')) {
+      replyText = 'Too fast baby! Neesa needs a breather 😤';
+    } else if (err.message?.includes('API key') || err.message?.includes('unauthorized')) {
+      replyText = 'Invalid key…';
+    }
+
+    await message.reply(replyText);
   }
 });
 // ──────────────────────────────────────────────
