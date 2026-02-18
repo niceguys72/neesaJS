@@ -104,7 +104,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 // ──────────────────────────────────────────────
 // TEXT COMMANDS → ?!prompt
 // ──────────────────────────────────────────────
-
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!message.content.startsWith('?!')) return;
@@ -129,13 +128,13 @@ Use LOTS of emojis, exclamation marks, CAPS when excited.
 Never break character. Never be normal or calm.
 
 User: ${userInput}
-    `;
+    `.trim();
 
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         {
           role: "user",
-          content: fullPrompt.trim(),
+          content: fullPrompt,
         },
       ],
       model: GROQ_MODEL,
@@ -144,10 +143,14 @@ User: ${userInput}
       top_p: 0.95,
     });
 
+    // Debug: log the raw response so we can see exactly what Groq sent
+    console.log('Raw Groq response:', JSON.stringify(chatCompletion.choices[0], null, 2));
+
     let text = chatCompletion.choices[0]?.message?.content?.trim();
 
-    if (!text || text.length < 3) {
-      text = '…brain.exe has stopped responding… say it sexier 😩';
+    // Stronger fallback: if no content at all, give a sassy default
+    if (!text || text.length < 5 || /^\d+\.\d+$/.test(text.trim())) {  // catches floating-point numbers
+      text = '…brain.exe has stopped responding';
     }
 
     await message.reply(text);
@@ -158,9 +161,7 @@ User: ${userInput}
     if (err.message?.includes('rate limit') || err.message?.includes('quota')) {
       replyText = 'Too fast baby! Neesa needs a breather 😤';
     } else if (err.message?.includes('API key') || err.message?.includes('unauthorized')) {
-      replyText = 'Invalid key… someone\'s in trouble~ 🔑💥';
-    } else if (err.message?.includes('400') || err.message?.includes('invalid_request')) {
-      replyText = 'Something broke in my brain… try again? 💔';
+      replyText = 'Invalid key…';
     }
 
     await message.reply(replyText);
