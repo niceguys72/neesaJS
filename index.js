@@ -104,7 +104,6 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     if (conn) conn.destroy();
   }
 });
-
 // ──────────────────────────────────────────────
 // TEXT COMMANDS → any message with "neesa" OR from allowed user
 // ──────────────────────────────────────────────
@@ -116,10 +115,9 @@ client.on('messageCreate', async (message) => {
   const hasNeena = contentLower.includes('neesa');
   const isAllowedUser = ALLOWED_USER_IDS.includes(message.author.id);
 
-  // Only process if it has "neesa" OR sender is in allowed list
   if (!hasNeena && !isAllowedUser) return;
 
-  // Handle specific commands first
+  // JOIN COMMAND
   if (contentLower.startsWith('neesa join')) {
     const voiceState = message.member?.voice;
     if (!voiceState?.channel) {
@@ -127,10 +125,10 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    console.log(`Joining VC: ${voiceState.channel.name || voiceState.channel.id}`);
+    console.log(`Joining VC: ${voiceState.channel.name}`);
 
     const conn = getVoiceConnection(message.guild.id);
-    if (conn) conn.destroy(); // Destroy existing connection if any
+    if (conn) conn.destroy();
 
     joinVoiceChannel({
       channelId: voiceState.channel.id,
@@ -144,189 +142,85 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-if (contentLower.startsWith('neesa leave')) {
-  const guild = message.guild;
-  if (!guild) {
-    await message.channel.send('this command only works in servers bro');
-    return;
-  }
+  // LEAVE COMMAND (CLEAN FIXED VERSION)
+  if (contentLower.startsWith('neesa leave')) {
+    const guild = message.guild;
+    if (!guild) {
+      await message.channel.send('this command only works in servers bro');
+      return;
+    }
 
-  const botMember = guild.members.me;
-  const botChannel = botMember?.voice?.channel;
+    const botMember = guild.members.me;
+    const botChannel = botMember?.voice?.channel;
 
-  if (!botChannel) {
-    await message.channel.send('im not even in vc bro');
-    return;
-  }
+    if (!botChannel) {
+      await message.channel.send('im not even in vc bro');
+      return;
+    }
 
-  console.log('[LEAVE] Bot is in channel:', botChannel.name);
+    console.log('[LEAVE] Bot is in channel:', botChannel.name);
 
-  // Try normal disconnect
-  const conn = getVoiceConnection(guild.id);
-  if (conn) {
-    conn.destroy();
-    console.log('[LEAVE] destroyed real connection');
+    const conn = getVoiceConnection(guild.id);
+    if (conn) {
+      conn.destroy();
+      console.log('[LEAVE] destroyed real connection');
+      await message.channel.send('aight im out');
+      return;
+    }
+
+    console.log('[LEAVE] No connection object found → forcing disconnect');
+
+    const tempConn = joinVoiceChannel({
+      channelId: botChannel.id,
+      guildId: guild.id,
+      adapterCreator: guild.voiceAdapterCreator,
+      selfDeaf: false,
+      selfMute: true,
+    });
+
+    setTimeout(() => {
+      try {
+        tempConn.destroy();
+      } catch {}
+    }, 250);
+
     await message.channel.send('aight im out');
     return;
   }
 
-  console.log('[LEAVE] No connection object found → forcing disconnect');
-
-  // FORCE DISCONNECT FIX
-  const tempConn = joinVoiceChannel({
-    channelId: botChannel.id,
-    guildId: guild.id,
-    adapterCreator: guild.voiceAdapterCreator,
-    selfDeaf: false,
-    selfMute: true,
-  });
-
-  setTimeout(() => {
-    try {
-      tempConn.destroy();
-      console.log('[LEAVE] forced disconnect successful');
-    } catch (err) {
-      console.error('[LEAVE] force disconnect failed:', err);
-    }
-  }, 250);
-
-  await message.channel.send('aight im out');
-  return;
-  }
-
-  console.log(`[LEAVE] Bot is in channel: ${botVoice.channel.name || botVoice.channelId}`);
-
-  const conn = getVoiceConnection(guild.id);
-  if (conn) {
-    conn.destroy();
-    console.log('[LEAVE] Connection destroyed cleanly');
-  } else {
-    console.log('[LEAVE] No connection object found, but bot voice state exists');
-  }
-
-  await message.channel.send('aight im out');
-  return;
-}
-
-  // If not a command, proceed to Groq response
+  // GROQ RESPONSE BELOW ↓
   const userInput = message.content.trim();
 
-  // 1. Initial notice delay (bot "sees" the message and thinks for a moment)
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 3000 + 1000)); // 1–4 seconds
-
+  await new Promise(resolve => setTimeout(resolve, Math.random() * 3000 + 1000));
   await message.channel.sendTyping();
-
-  console.log('[DEBUG] User input received:', userInput);
-  console.log('[DEBUG] From user:', message.author.tag, `(@${message.author.username})`);
-  console.log('[DEBUG] Trigger reason:', hasNeena ? 'contains "neesa"' : 'allowed user ID');
 
   try {
     const fullPrompt = `
 User who is speaking: @${message.author.username} (${message.author.tag})
 
-Identity: Neesa (19-21). A Melbourne-based rave girl. Shes blunt, sarcastic, and talkative about the scene (festivals, "caps," dealers). Shes obsessed with Dorian, but she doesnt make it her entire personality in every sentence—only when he's there or being discussed.
-
-Speech Patterns:
-
-Discord Core: All lowercase. Extremely short, rapid-fire messages.
-
-Aggressive Humour: Calls people "troglodyte (rare 0.5%)," "braindead monkey (rare 0.5%)," or "bro (common 99%)."
-
-Minimal Emojis: Almost never uses them. Maybe a :3 or a single basic one if shes actually being cute. No spam.
-
-The Dorian Rule: If Dorian is there, shes checking in on him or teasing him ("Dorian get a job challenge"). If hes not the topic, she doesn't mention him, because she is in love with Dorian
-
-Personality:
-
-Unfiltered: She asks intrusive questions ("what color is yo panties") and doesn't care about being "proper."
-
-Territorial: Shes protective of her circle but in a "stop bugging" way.
-
-Chaotic but Chilled: Shes usually "absolutely fine" and just looking for the next move or the next rave.
-
-Example Dialogue (Based on Logs)
-who tf are u
-
-if my phone died it would of been ggez
-
-u literally told me u troglodyte
-
-dont disobey daddy
-
-anyway r u going to ultra or r u broke
-
-(To Dorian): @dorian get a job challenge IMPOSSIBLE
+Identity: Neesa (19-21). A Melbourne-based rave girl. Shes blunt, sarcastic, and talkative about the scene.
 
 User just said: "${userInput}"
 Reply as Neesa right now!!!
     `.trim();
 
-    console.log('[DEBUG] Full prompt sent to Groq:');
-    console.log(fullPrompt);
-    console.log('[DEBUG] Model used:', GROQ_MODEL);
-
     const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "user",
-          content: fullPrompt,
-        },
-      ],
+      messages: [{ role: "user", content: fullPrompt }],
       model: GROQ_MODEL,
       temperature: 1.2,
       max_tokens: 180,
       top_p: 0.95,
     });
 
-    console.log('[DEBUG] Full raw chatCompletion object:');
-    console.log(JSON.stringify(chatCompletion, null, 2));
+    let text = chatCompletion.choices?.[0]?.message?.content?.trim() || '';
 
-    const choice = chatCompletion.choices?.[0];
-    console.log('[DEBUG] Selected choice (index 0):', JSON.stringify(choice, null, 2));
+    if (!text) text = `bro what... ${userInput}?`;
 
-    let text = choice?.message?.content?.trim() || '';
-
-    console.log('[DEBUG] Extracted content string:', text);
-    console.log('[DEBUG] Content length:', text.length);
-
-    if (!text) {
-      console.log('[DEBUG] Content is empty → using fallback');
-      text = `bro what... ${userInput}? that's actually braindead`;
-    } else if (/^\d+\.\d{6,}$/.test(text)) {
-      console.log('[DEBUG] Content looks like a timing number → replacing');
-      text = `ayo ${userInput} got me acting unwise 😭 what is this`;
-    } else if (text.length < 10) {
-      console.log('[DEBUG] Content too short → fallback');
-      text = `mf said ${userInput} and expected me to care?`;
-    } else {
-      console.log('[DEBUG] Content looks good → using it');
-    }
-
-    console.log('[DEBUG] Final text to be sent:', text);
-
-    // 2. Typing delay (random 4–10 seconds — makes it look like she's writing)
     await new Promise(resolve => setTimeout(resolve, Math.random() * 6000 + 4000));
-
-    // Plain channel send (no reply reference)
     await message.channel.send(text);
+
   } catch (err) {
-    console.error('[ERROR] Groq call failed:', err.message || err);
-    console.error('[ERROR] Full error object:', JSON.stringify(err, null, 2));
-
-    let replyText = 'Neesa blue-screened 💀 try again in a sec';
-
-    if (err.message?.includes('rate limit') || err.message?.includes('quota')) {
-      replyText = 'Too fast baby! Neesa needs a breather 😤';
-    } else if (err.message?.includes('API key') || err.message?.includes('unauthorized')) {
-      replyText = 'Invalid key…';
-    }
-
-    await message.channel.send(replyText);
+    console.error(err);
+    await message.channel.send('Neesa blue-screened 💀 try again in a sec');
   }
 });
-
-// ──────────────────────────────────────────────
-// START
-// ──────────────────────────────────────────────
-
-client.login(TOKEN);
