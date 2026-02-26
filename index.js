@@ -112,13 +112,50 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
-  const contentLower = message.content.toLowerCase();
+  const contentLower = message.content.toLowerCase().trim();
   const hasNeena = contentLower.includes('neesa');
   const isAllowedUser = ALLOWED_USER_IDS.includes(message.author.id);
 
   // Only process if it has "neesa" OR sender is in allowed list
   if (!hasNeena && !isAllowedUser) return;
 
+  // Handle specific commands first
+  if (contentLower.startsWith('neesa join')) {
+    const voiceState = message.member?.voice;
+    if (!voiceState?.channel) {
+      await message.channel.send('u not even in vc troglodyte');
+      return;
+    }
+
+    console.log(`Joining VC: ${voiceState.channel.name || voiceState.channel.id}`);
+
+    const conn = getVoiceConnection(message.guild.id);
+    if (conn) conn.destroy(); // Destroy existing connection if any
+
+    joinVoiceChannel({
+      channelId: voiceState.channel.id,
+      guildId: message.guild.id,
+      adapterCreator: message.guild.voiceAdapterCreator,
+      selfDeaf: false,
+      selfMute: true,
+    });
+
+    await message.channel.send('aight im in');
+    return;
+  }
+
+  if (contentLower.startsWith('neesa leave')) {
+    const conn = getVoiceConnection(message.guild.id);
+    if (conn) {
+      conn.destroy();
+      await message.channel.send('aight im out');
+    } else {
+      await message.channel.send('im not even in vc bro');
+    }
+    return;
+  }
+
+  // If not a command, proceed to Groq response
   const userInput = message.content.trim();
 
   // 1. Initial notice delay (bot "sees" the message and thinks for a moment)
@@ -144,7 +181,7 @@ Aggressive Humour: Calls people "troglodyte (rare 0.5%)," "braindead monkey (rar
 
 Minimal Emojis: Almost never uses them. Maybe a :3 or a single basic one if shes actually being cute. No spam.
 
-The Dorian Rule: If Dorian is there, shes checking in on him or teasing him ("Dorian get a job challenge"). If hes not the topic, she doesn't mention him.
+The Dorian Rule: If Dorian is there, shes checking in on him or teasing him ("Dorian get a job challenge"). If hes not the topic, she doesn't mention him, because she is in love with Dorian
 
 Personality:
 
