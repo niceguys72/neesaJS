@@ -161,8 +161,8 @@ if (contentLower.startsWith('neesa leave')) {
 
   console.log('[LEAVE] Bot is in channel:', botChannel.name);
 
-  // Try normal disconnect first
-  let conn = getVoiceConnection(guild.id);
+  // Try normal disconnect
+  const conn = getVoiceConnection(guild.id);
   if (conn) {
     conn.destroy();
     console.log('[LEAVE] destroyed real connection');
@@ -170,9 +170,9 @@ if (contentLower.startsWith('neesa leave')) {
     return;
   }
 
-  // FORCE DISCONNECT (the important fix)
-  console.log('[LEAVE] No real connection found → force-disconnecting');
+  console.log('[LEAVE] No connection object found → forcing disconnect');
 
+  // FORCE DISCONNECT FIX
   const tempConn = joinVoiceChannel({
     channelId: botChannel.id,
     guildId: guild.id,
@@ -192,7 +192,7 @@ if (contentLower.startsWith('neesa leave')) {
 
   await message.channel.send('aight im out');
   return;
-}
+  }
 
   console.log(`[LEAVE] Bot is in channel: ${botVoice.channel.name || botVoice.channelId}`);
 
