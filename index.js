@@ -144,16 +144,29 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-  if (contentLower.startsWith('neesa leave')) {
-    const conn = getVoiceConnection(message.guild.id);
-    if (conn) {
-      conn.destroy();
-      await message.channel.send('aight im out');
-    } else {
-      await message.channel.send('im not even in vc bro');
-    }
+if (contentLower.startsWith('neesa leave')) {
+  const guild = message.guild;
+  const botMember = guild.members.me;
+  const botVoice = botMember?.voice;
+
+  if (!botVoice?.channelId) {
+    await message.channel.send('im not even in vc bro');
     return;
   }
+
+  console.log(`[LEAVE] Bot is in channel: ${botVoice.channel.name || botVoice.channelId}`);
+
+  const conn = getVoiceConnection(guild.id);
+  if (conn) {
+    conn.destroy();
+    console.log('[LEAVE] Connection destroyed cleanly');
+  } else {
+    console.log('[LEAVE] No connection object found, but bot voice state exists');
+  }
+
+  await message.channel.send('aight im out');
+  return;
+}
 
   // If not a command, proceed to Groq response
   const userInput = message.content.trim();
