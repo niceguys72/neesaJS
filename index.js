@@ -146,13 +146,53 @@ client.on('messageCreate', async (message) => {
 
 if (contentLower.startsWith('neesa leave')) {
   const guild = message.guild;
-  const botMember = guild.members.me;
-  const botVoice = botMember?.voice;
+  if (!guild) {
+    await message.channel.send('this command only works in servers bro');
+    return;
+  }
 
-  if (!botVoice?.channelId) {
+  const botMember = guild.members.me;
+  const botChannel = botMember?.voice?.channel;
+
+  if (!botChannel) {
     await message.channel.send('im not even in vc bro');
     return;
   }
+
+  console.log('[LEAVE] Bot is in channel:', botChannel.name);
+
+  // Try normal disconnect first
+  let conn = getVoiceConnection(guild.id);
+  if (conn) {
+    conn.destroy();
+    console.log('[LEAVE] destroyed real connection');
+    await message.channel.send('aight im out');
+    return;
+  }
+
+  // FORCE DISCONNECT (the important fix)
+  console.log('[LEAVE] No real connection found → force-disconnecting');
+
+  const tempConn = joinVoiceChannel({
+    channelId: botChannel.id,
+    guildId: guild.id,
+    adapterCreator: guild.voiceAdapterCreator,
+    selfDeaf: false,
+    selfMute: true,
+  });
+
+  setTimeout(() => {
+    try {
+      tempConn.destroy();
+      console.log('[LEAVE] forced disconnect successful');
+    } catch (err) {
+      console.error('[LEAVE] force disconnect failed:', err);
+    }
+  }, 250);
+
+  await message.channel.send('aight im out');
+  return;
+}
 
   console.log(`[LEAVE] Bot is in channel: ${botVoice.channel.name || botVoice.channelId}`);
 
